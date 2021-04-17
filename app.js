@@ -13,7 +13,7 @@ app.get('/', (req, res) => {
     res.sendFile(__dirname + '/public/index.html')
 })
 
-var name; 
+var name;  
 
 io.on('connection', (socket) => {
     
@@ -36,7 +36,7 @@ io.on('connection', (socket) => {
 })
 
 
-server.listen(3000, () => {
-    console.log('Sunucu 3000 den başlatıldı')
+server.listen(8000, () => {
+    console.log('Sunucu 8000 den başlatıldı')
     
 })
