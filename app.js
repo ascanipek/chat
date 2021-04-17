@@ -30,7 +30,7 @@ io.on('connection', (socket) => {
     })
 
     socket.on('chat mesaj', (msg) => { // önyüzden gelen mesaj yakalnıp herjese tekarar aynı kanaldan gönerilir
-        io.emit('chat mesaj', msg)
+        socket.broadcast.emit('chat mesaj', msg)
     })
 
 })
