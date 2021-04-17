@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chit-Chating</title>
+    <link rel="stylesheet" href="css/style.css">
+
+    <script>
+        var name = prompt('İsminizi Girin: ')
+    </script>
+</head>
+<body>
+    <div id="intro">
+        <h1>Chit-Chating App</h1>
+    </div>
+
+    <ul id="messages">
+        
+    </ul>
+
+    <form action="" id="form">
+        <input id="m" placeholder="Bir mesaj yazın..." type="text" required>
+        <button>Gönder</button>
+    </form>
+
+   <script src="/socket.io/socket.io.js"></script>
+    <script>
+        var socket = io();
+
+        // yeni biri katıldığında
+        socket.emit('join', name) // frontendden backende veri gönderimi 
+
+        var form = document.querySelector('#form')
+
+        form.addEventListener('submit', function(event){
+            event.preventDefault() // sayfanın yenilenmemesi için
+
+            let mesaj = name + ': ' + document.querySelector('#m').value
+            socket.emit('chat mesaj', mesaj) // frontendden backende veri gönderimi 
+
+            let li = document.createElement('li')
+            li.id = 'list'
+            li.textContent = 'Siz: ' + document.querySelector('#m').value
+            document.querySelector('#messages').appendChild(li)
+
+            document.querySelector('#m').value = ' '
+            return false
+        })
+
+
+
+
+
+
+
+
+        // mesajları yakalamak için
+        socket.on('chat mesaj', (msg) => {
+           let li = document.createElement('li')
+           li.textContent = msg
+           document.querySelector('#messages').appendChild(li)
+        })
+
+        
+    </script>
+</body>
+</html>

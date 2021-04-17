@@ -1,0 +1,63 @@
+* {
+    margin: 0;
+    padding: 0;
+
+    box-sizing: border-box;
+}
+
+#intro{
+    background-color: rgba(0, 153, 255, 0.829);
+    color: white;
+    height: 2em;
+}
+
+h1{
+    font-size: 30px;
+}
+
+body{
+    font-size: 30px;
+}
+
+form {
+    background-color: #000;
+    padding: 5px;
+    position: fixed;
+    bottom: 5px;
+    width: 100%;
+}
+
+form input {
+    background-color: rgb(173, 221, 240);
+    border: 0;
+    padding: 10px;
+    width: 90%;
+    margin-right: .3em;
+    font-size: 17px;
+}
+
+form button{
+    width: 9%;
+    background-color: rgba(11, 75, 112, 0.753);
+    border: none;
+    padding: 10px;
+    font-size: 20px;
+    color: #fff;
+}
+
+#messages{
+    margin: 0; 
+    padding: 0;
+}
+
+#messages li {
+    padding: 5px 10px;
+}
+
+#messages li:nth-child(odd){
+    background-color: crimson;
+}
+
+#list{
+    text-align: right;
+}
