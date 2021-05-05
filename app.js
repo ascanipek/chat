@@ -1,18 +1,52 @@
 var express = require('express')
 var http = require('http')
 
+const {ifLoggedin, ifNotLoggedin} = require("./middlewares/accessControl")
+
+// cookie, bcrypt, database ve validation kütüphaneleri
+
+    const cookieSession = require('cookie-session');
+    const bcrypt = require('bcrypt');
+    const dbConnection = require('./database');
+    const { body, validationResult } = require('express-validator');
+
+//  
+
 var app = express()
+
+// post edilen datayı yakalamk için
+    app.use(express.urlencoded({extended:true}));
+// 
+
 var server = http.createServer(app)
 
 var io = require('socket.io')(server)
 var path = require('path')
 
-app.use(express.static(path.join(__dirname, './public')))
+// Cookie için
+    app.set('views', path.join(__dirname,'./public/views'));
+    app.set('view engine','ejs');
 
-app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/public/index.html')
-})
+    app.use(cookieSession({
+        name: 'session',
+        keys: ['key1', 'key2'],
+        maxAge:  3600 * 1000 // 1hr
+    })); 
+// 
 
+// Ana Sayfa Dikkat buradaki ifNotLoggedin middleware'i login olup olmama durumunu kontrol eder!
+app.get('/', ifNotLoggedin, (req,res,next) => {
+    dbConnection.execute("SELECT `name` FROM `users` WHERE `id`=?",[req.session.userID])
+    .then(([rows]) => {
+        res.render('home',{
+            isim:rows[0].name
+        });
+    });
+    
+});// ana sayfa sonu
+
+
+// Chat ile ilgili kodlar yani socket.io
 var name;  
 
 io.on('connection', (socket) => {
@@ -34,7 +68,129 @@ io.on('connection', (socket) => {
     })
 
 })
+//  chat kodlarının sonu
 
+// Kayıt sayfası
+app.post('/register', ifLoggedin, 
+// post data validation(using express-validator)
+[
+    body('user_email','Invalid email address!').isEmail().custom((value) => {
+        return dbConnection.execute('SELECT `email` FROM `users` WHERE `email`=?', [value])
+        .then(([rows]) => {
+            if(rows.length > 0){
+                return Promise.reject('This E-mail already in use!');
+            }
+            return true;
+        });
+    }),
+    body('user_name','Username is Empty!').trim().not().isEmpty(),
+    body('user_pass','The password must be of minimum length 6 characters').trim().isLength({ min: 6 }),
+],// end of post data validation
+(req,res,next) => {
+
+    const validation_result = validationResult(req);
+    const {user_name, user_pass, user_email} = req.body;
+    // IF validation_result HAS NO ERROR
+    if(validation_result.isEmpty()){
+        // password encryption (using bcryptjs)
+        bcrypt.hash(user_pass, 12).then((hash_pass) => {
+            // INSERTING USER INTO DATABASE
+            dbConnection.execute("INSERT INTO `users`(`name`,`email`,`password`) VALUES(?,?,?)",[user_name,user_email, hash_pass])
+            .then(result => {
+                res.send(`your account has been created successfully, Now you can <a href="/">Login</a>`);
+            }).catch(err => {
+                // THROW INSERTING USER ERROR'S
+                if (err) throw err;
+            });
+        })
+        .catch(err => {
+            // THROW HASING ERROR'S
+            if (err) throw err;
+        })
+    }
+    else{
+        // COLLECT ALL THE VALIDATION ERRORS
+        let allErrors = validation_result.errors.map((error) => {
+            return error.msg;
+        });
+        // REDERING login-register PAGE WITH VALIDATION ERRORS
+        res.render('login-register',{
+            register_error:allErrors,
+            old_data:req.body
+        });
+    }
+});// kayıt sayfası sonu
+
+// login sayfası
+app.post('/', ifLoggedin, [
+    body('user_email').custom((value) => {
+        return dbConnection.execute('SELECT `email` FROM `users` WHERE `email`=?', [value])
+        .then(([rows]) => {
+            if(rows.length == 1){
+                return true;
+            }
+            return Promise.reject('Invalid Email Address!');
+            
+        });
+    }),
+    body('user_pass','Password is empty!').trim().not().isEmpty(),
+], (req, res) => {
+    const validation_result = validationResult(req);
+    const {user_pass, user_email} = req.body;
+    if(validation_result.isEmpty()){
+        
+        dbConnection.execute("SELECT * FROM `users` WHERE `email`=?",[user_email])
+        .then(([rows]) => {
+            bcrypt.compare(user_pass, rows[0].password).then(compare_result => {
+                if(compare_result === true){
+                    req.session.isLoggedIn = true;
+                    req.session.userID = rows[0].id;
+
+                    res.redirect('/');
+                    // res.sendFile(__dirname + '/public/views/index.html')
+                }
+                else{
+                    res.render('login-register',{
+                        login_errors:['Invalid Password!']
+                    });
+                }
+            })
+            .catch(err => {
+                if (err) throw err;
+            });
+
+
+        }).catch(err => {
+            if (err) throw err;
+        });
+    }
+    else{
+        let allErrors = validation_result.errors.map((error) => {
+            return error.msg;
+        });
+        // REDERING login-register PAGE WITH LOGIN VALIDATION ERRORS
+        res.render('login-register',{
+            login_errors:allErrors
+        });
+    }
+});
+// login sayfası sonu
+
+// Logout sayfası
+app.get('/logout',(req,res)=>{
+    //session destroy
+    req.session = null;
+    res.redirect('/');
+});
+// logout sayfasının sonu
+
+app.use('/', (req,res) => {
+    res.status(404).send('<h1>404 Page Not Found!</h1>');
+});
+
+
+// Port tanımlama 8000 tanımlamamızın sebebi sunucuda yayınlandığında port belirtmeden çalışması için 
+// öünkü http 8000 portundan çalışır
 const PORT = process.env.PORT || 8000
 
 server.listen(PORT, () => {

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chit-Chating</title>
+    <!-- <link rel="stylesheet" href="./css/style.css"> -->
+
+    
+</head>
+<body>
+    <h2 style="display:none;" id="uid"><%= isim %></h2>
+    <div>
+        <div id="intro">
+            <h1>Chit-Chating App</h1>
+            <a href="/logout" class="btn btn-danger">Logout</a>
+        </div>
+    </div>
+   
+
+    <ul id="messages">
+        
+    </ul>
+
+    <form action="" id="form">
+        <input id="m" placeholder="Bir mesaj yazın..." type="text" required>
+        <button>Gönder</button>
+    </form>
+
+   <script src="/socket.io/socket.io.js"></script>
+    <script>
+
+        var name = document.querySelector('#uid').innerHTML
+        console.log(name)
+        var socket = io();
+
+        // yeni biri katıldığında
+        socket.emit('join', name) // frontendden backende veri gönderimi 
+
+        var form = document.querySelector('#form')
+
+        form.addEventListener('submit', function(event){
+            event.preventDefault() // sayfanın yenilenmemesi için
+
+            let mesaj = name + ': ' + document.querySelector('#m').value
+            socket.emit('chat mesaj', mesaj) // frontendden backende veri gönderimi 
+
+            let li = document.createElement('li')
+            li.id = 'list'
+            li.textContent = 'Siz: ' + document.querySelector('#m').value
+            document.querySelector('#messages').appendChild(li)
+
+            document.querySelector('#m').value = ' '
+            return false
+        })
+
+
+
+
+
+
+
+
+        // mesajları yakalamak için
+        socket.on('chat mesaj', (msg) => {
+           let li = document.createElement('li')
+           li.textContent = msg
+           document.querySelector('#messages').appendChild(li)
+        })
+
+        
+    </script>
+</body>
+<style>
+    * {
+    margin: 0;
+    padding: 0;
+
+    box-sizing: border-box;
+}
+
+#intro{
+    background-color: rgba(0, 153, 255, 0.829);
+    color: white;
+    height: 2em;
+}
+
+h1{
+    font-size: 30px;
+}
+
+body{
+    font-size: 30px;
+}
+
+form {
+    background-color: #000;
+    padding: 5px;
+    position: fixed;
+    bottom: 5px;
+    width: 100%;
+}
+
+form input {
+    background-color: rgb(173, 221, 240);
+    border: 0;
+    padding: 10px;
+    width: 90%;
+    margin-right: .3em;
+    font-size: 17px;
+}
+
+form button{
+    width: 9%;
+    background-color: rgba(11, 75, 112, 0.753);
+    border: none;
+    padding: 10px;
+    font-size: 20px;
+    color: #fff;
+}
+
+#messages{
+    margin: 0; 
+    padding: 0;
+}
+
+#messages li {
+    padding: 5px 10px;
+}
+
+#messages li:nth-child(odd){
+    background-color: crimson;
+}
+
+#list{
+    text-align: right;
+}
+
+</style>
+</html>
