@@ -20,13 +20,15 @@ var app = express()
 
 var server = http.createServer(app)
 
+// chat için gerekli
 var io = require('socket.io')(server)
 var path = require('path')
 
-// Cookie için
+
     app.set('views', path.join(__dirname,'./public/views'));
     app.set('view engine','ejs');
 
+// Cookie için
     app.use(cookieSession({
         name: 'session',
         keys: ['key1', 'key2'],
@@ -70,6 +72,71 @@ io.on('connection', (socket) => {
 })
 //  chat kodlarının sonu
 
+// login sayfası Oturum açma fonksyionu
+app.post('/', ifLoggedin, [
+    body('user_email').custom((value) => {
+        return dbConnection.execute('SELECT `email` FROM `users` WHERE `email`=?', [value])
+        .then(([rows]) => {
+            if(rows.length == 1){
+                return true;
+            }
+            else if(rows.length == 0)
+                return Promise.reject('Hatalı E-Posta!'); 
+        });
+    }),
+    body('user_pass','Password is empty!').trim().not().isEmpty(),
+], (req, res) => {
+    const validation_result = validationResult(req);
+    const {user_pass, user_email} = req.body;
+    if(validation_result.isEmpty()){
+        
+        dbConnection.execute("SELECT * FROM `users` WHERE `email`=?",[user_email])
+        .then(([rows]) => {
+            bcrypt.compare(user_pass, rows[0].password).then(compare_result => {
+                if(compare_result === true){
+                    req.session.isLoggedIn = true;
+                    req.session.userID = rows[0].id;
+
+                    res.redirect('/');
+                    // res.sendFile(__dirname + '/public/views/index.html')
+                }
+                else{
+                    res.render('login-register',{
+                        login_errors:['Hatalı Parola!']
+                    });
+                }
+            })
+            .catch(err => {
+                if (err) throw err;
+            });
+
+
+        }).catch(err => {
+            if (err) throw err;
+        });
+    }
+    else{
+        let allErrors = validation_result.errors.map((error) => {
+            return error.msg;
+        });
+        // REDERING login-register PAGE WITH LOGIN VALIDATION ERRORS
+        res.render('login-register',{
+            login_errors:allErrors
+        });
+    }
+});
+// login sayfası sonu
+
+// Logout sayfası
+app.get('/logout',(req,res)=>{
+    //session destroy
+    req.session = null;
+    // ana sayfaya gönderir o da session olmadığı için login sayfasıan gönderir
+    res.redirect('/');
+});
+// logout sayfasının sonu
+
+
 // Kayıt sayfası
 app.post('/register', ifLoggedin, 
 // post data validation(using express-validator)
@@ -77,8 +144,8 @@ app.post('/register', ifLoggedin,
     body('user_email','Invalid email address!').isEmail().custom((value) => {
         return dbConnection.execute('SELECT `email` FROM `users` WHERE `email`=?', [value])
         .then(([rows]) => {
-            if(rows.length > 0){
-                return Promise.reject('This E-mail already in use!');
+            if(rows.length == 1){
+                return Promise.reject('Bu E-Posta Kullanılmakta! Başka Bir E-Posta deneyin');
             }
             return true;
         });
@@ -121,68 +188,9 @@ app.post('/register', ifLoggedin,
     }
 });// kayıt sayfası sonu
 
-// login sayfası
-app.post('/', ifLoggedin, [
-    body('user_email').custom((value) => {
-        return dbConnection.execute('SELECT `email` FROM `users` WHERE `email`=?', [value])
-        .then(([rows]) => {
-            if(rows.length == 1){
-                return true;
-            }
-            return Promise.reject('Invalid Email Address!');
-            
-        });
-    }),
-    body('user_pass','Password is empty!').trim().not().isEmpty(),
-], (req, res) => {
-    const validation_result = validationResult(req);
-    const {user_pass, user_email} = req.body;
-    if(validation_result.isEmpty()){
-        
-        dbConnection.execute("SELECT * FROM `users` WHERE `email`=?",[user_email])
-        .then(([rows]) => {
-            bcrypt.compare(user_pass, rows[0].password).then(compare_result => {
-                if(compare_result === true){
-                    req.session.isLoggedIn = true;
-                    req.session.userID = rows[0].id;
-
-                    res.redirect('/');
-                    // res.sendFile(__dirname + '/public/views/index.html')
-                }
-                else{
-                    res.render('login-register',{
-                        login_errors:['Invalid Password!']
-                    });
-                }
-            })
-            .catch(err => {
-                if (err) throw err;
-            });
 
 
-        }).catch(err => {
-            if (err) throw err;
-        });
-    }
-    else{
-        let allErrors = validation_result.errors.map((error) => {
-            return error.msg;
-        });
-        // REDERING login-register PAGE WITH LOGIN VALIDATION ERRORS
-        res.render('login-register',{
-            login_errors:allErrors
-        });
-    }
-});
-// login sayfası sonu
 
-// Logout sayfası
-app.get('/logout',(req,res)=>{
-    //session destroy
-    req.session = null;
-    res.redirect('/');
-});
-// logout sayfasının sonu
 
 app.use('/', (req,res) => {
     res.status(404).send('<h1>404 Page Not Found!</h1>');
